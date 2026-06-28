@@ -232,6 +232,15 @@ body{
   color:#fff;padding:10px 18px;border-radius:999px;font-size:12px;
   opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:99;
 }
+.icon-btn{position:relative;}
+.icon-btn.danger{background:rgba(239,68,68,0.18);}
+.icon-btn.danger:active{background:rgba(239,68,68,0.32);}
+.icon-btn.wb-active{background:linear-gradient(135deg,#f59e0b,#ef4444);box-shadow:0 0 0 2px rgba(251,191,36,0.5);}
+.wb-count{position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;line-height:16px;padding:0 4px;border-radius:8px;display:none;}
+.wb-count.show{display:inline-block;}
+.wb-banner{background:linear-gradient(135deg,rgba(245,158,11,0.2),rgba(239,68,68,0.2));border:1px solid rgba(251,191,36,0.4);border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.wb-banner b{color:#fbbf24;}
+.wb-banner .wb-exit{background:rgba(255,255,255,0.15);border:0;color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;}
 .toast.show{opacity:1;}
 </style>
 </head>
@@ -242,8 +251,10 @@ body{
     <div class="title-row">
       <div class="title">N3 <span>벼락치기</span></div>
       <div class="head-btns">
-        <button class="icon-btn" id="btnShuffle" type="button">🔀</button>
-        <button class="icon-btn" id="btnReset" type="button">🔄</button>
+        <button class="icon-btn" id="btnShuffle" type="button" title="셔플">🔀</button>
+        <button class="icon-btn" id="btnWrongBook" type="button" title="오답노트 학습">📌<span class="wb-count" id="wbCount">0</span></button>
+        <button class="icon-btn" id="btnReset" type="button" title="현재 모드 초기화">🔄</button>
+        <button class="icon-btn danger" id="btnResetAll" type="button" title="전체 초기화">🧹</button>
       </div>
     </div>
 
@@ -295,6 +306,7 @@ body{
   'use strict';
 
   var STORAGE_PREFIX='n3_v3_';
+  var WRONGBOOK_KEY=STORAGE_PREFIX+'wrongbook'; // { 'grammar': [ids], 'vocab_meaning_all': [ids], ... }
   var GRAMMAR, VOCAB;
   try{
     GRAMMAR = JSON.parse(document.getElementById('grammarData').textContent);
@@ -334,12 +346,64 @@ body{
     tab:'grammar', mode:'meaning', cat:'all',
     queue:[], mastered:[], missCount:{},
     roundOk:0, roundNg:0,
-    flipped:false, currentId:null
+    flipped:false, currentId:null,
+    wrongBookMode:false  // 오답노트 학습 중 여부
   };
 
+  function modeKey(){
+    // 현재 탭/모드/카테고리를 식별하는 키 (오답노트 분리 저장용)
+    if(state.tab==='grammar') return 'grammar';
+    return 'vocab_'+state.mode+'_'+state.cat;
+  }
+
   function storageKey(){
-    if(state.tab==='grammar') return STORAGE_PREFIX+'grammar';
-    return STORAGE_PREFIX+'vocab_'+state.mode+'_'+state.cat;
+    var base = STORAGE_PREFIX + modeKey();
+    return state.wrongBookMode ? base+'__wb' : base;
+  }
+
+  // ===== 오답노트(WrongBook) =====
+  function loadWrongBook(){
+    try{
+      var raw = storageGet(WRONGBOOK_KEY);
+      if(!raw) return {};
+      var wb = JSON.parse(raw);
+      return (wb && typeof wb==='object') ? wb : {};
+    }catch(e){ return {}; }
+  }
+  function saveWrongBook(wb){
+    try{ storageSet(WRONGBOOK_KEY, JSON.stringify(wb)); }catch(e){}
+  }
+  function addToWrongBook(id){
+    if(state.wrongBookMode) return; // 오답노트 학습 중에 또 틀린 건 그대로 큐에 두고 카운트만
+    var wb = loadWrongBook();
+    var key = modeKey();
+    var arr = wb[key] || [];
+    if(arr.indexOf(id) === -1){ arr.push(id); }
+    wb[key] = arr;
+    saveWrongBook(wb);
+  }
+  function removeFromWrongBook(id){
+    var wb = loadWrongBook();
+    var key = modeKey();
+    var arr = wb[key] || [];
+    var idx = arr.indexOf(id);
+    if(idx !== -1){ arr.splice(idx,1); wb[key] = arr; saveWrongBook(wb); }
+  }
+  function getWrongBookIds(){
+    var wb = loadWrongBook();
+    return wb[modeKey()] || [];
+  }
+  function updateWrongBookBadge(){
+    var el = document.getElementById('wbCount');
+    if(!el) return;
+    var n = getWrongBookIds().length;
+    if(n>0){ el.textContent = n; el.classList.add('show'); }
+    else { el.classList.remove('show'); }
+    var btn = document.getElementById('btnWrongBook');
+    if(btn){
+      if(state.wrongBookMode) btn.classList.add('wb-active');
+      else btn.classList.remove('wb-active');
+    }
   }
 
   function shuffleArray(a){
@@ -350,6 +414,13 @@ body{
   }
 
   function getDataset(){
+    if(state.wrongBookMode){
+      // 오답노트 모드: 등록된 ID만 필터링
+      var src = state.tab==='grammar' ? GRAMMAR : VOCAB;
+      var ids = getWrongBookIds();
+      var idSet = {}; for(var i=0;i<ids.length;i++) idSet[ids[i]] = true;
+      return src.filter(function(c){ return idSet[c.id]; });
+    }
     if(state.tab==='grammar') return GRAMMAR;
     if(state.cat==='all') return VOCAB;
     return VOCAB.filter(function(v){ return v.cat===state.cat; });
@@ -392,13 +463,33 @@ body{
 
   function initFresh(){
     var ds = getDataset();
-    state.queue = ds.map(function(c){ return c.id; });
+    // 목표 시퀀스 = 데이터셋의 고유 ID 집합. 중복 제거 보장.
+    var seen = {};
+    var ids = [];
+    for(var i=0;i<ds.length;i++){
+      var id = ds[i].id;
+      if(!seen[id]){ seen[id] = true; ids.push(id); }
+    }
+    state.queue = ids;
     shuffleArray(state.queue);
     state.mastered = [];
     state.missCount = {};
     state.roundOk = 0;
     state.roundNg = 0;
     saveState();
+  }
+
+  // 큐 중복 제거 유틸 (방어적)
+  function dedupeQueue(){
+    var seen = {};
+    var out = [];
+    for(var i=0;i<state.queue.length;i++){
+      var id = state.queue[i];
+      if(seen[id]) continue;
+      seen[id] = true;
+      out.push(id);
+    }
+    state.queue = out;
   }
 
   function isInMastered(id){
@@ -437,6 +528,8 @@ body{
   }
 
   function render(){
+    // 방어적 중복 제거
+    dedupeQueue();
     var ds = getDataset();
     document.getElementById('statTotal').textContent = ds.length;
     document.getElementById('statDone').textContent = state.mastered.length;
@@ -445,18 +538,31 @@ body{
     document.getElementById('statQueue').textContent = state.queue.length;
     document.getElementById('progressFill').style.width = (state.mastered.length/Math.max(ds.length,1)*100)+'%';
 
-    document.getElementById('modeRow').style.display = state.tab==='vocab' ? 'flex' : 'none';
-    document.getElementById('catRow').style.display = state.tab==='vocab' ? 'flex' : 'none';
+    document.getElementById('modeRow').style.display = (state.tab==='vocab' && !state.wrongBookMode) ? 'flex' : 'none';
+    document.getElementById('catRow').style.display = (state.tab==='vocab' && !state.wrongBookMode) ? 'flex' : 'none';
 
     var main = document.getElementById('mainArea');
 
+    // 오답노트 모드 배너
+    var wbBanner = '';
+    if(state.wrongBookMode){
+      var total = getWrongBookIds().length;
+      wbBanner = '<div class="wb-banner"><div>📌 <b>오답노트 학습</b> · 남은 단어 '+total+'개<br><span style="font-size:11px;opacity:0.7">✓ 맞추면 노트에서 제거되요</span></div><button class="wb-exit" id="wbExit" type="button">일반학습↩</button></div>';
+    }
+
     if(ds.length===0){
-      main.innerHTML='<div class="done"><p>카테고리 데이터가 없어요</p></div>';
+      var emptyMsg = state.wrongBookMode
+        ? '<div class="big">🎉</div><h2>오답 제로!</h2><p>이 모드에 틀린 단어가 없어요</p><div class="done-actions"><button type="button" class="btn-text" id="wbExitBig">← 일반 학습으로</button></div>'
+        : '<p>카테고리 데이터가 없어요</p>';
+      main.innerHTML = wbBanner + '<div class="done">'+emptyMsg+'</div>';
+      var x = document.getElementById('wbExitBig'); if(x) x.addEventListener('click', exitWrongBook);
+      var y = document.getElementById('wbExit'); if(y) y.addEventListener('click', exitWrongBook);
       return;
     }
     if(state.queue.length===0){
-      main.innerHTML = renderDone();
+      main.innerHTML = wbBanner + renderDone();
       bindDoneEvents();
+      var y2 = document.getElementById('wbExit'); if(y2) y2.addEventListener('click', exitWrongBook);
       return;
     }
 
@@ -472,7 +578,7 @@ body{
     var missHtml = misses>0 ? '<span class="miss-tag">'+misses+'회</span>' : '';
     var hintHtml = q.exHint ? '<div class="kana-hint">💡 '+esc(q.exHint)+'</div>' : '';
 
-    main.innerHTML =
+    main.innerHTML = wbBanner +
       '<div class="card-area">' +
         '<div class="card" id="card">' +
           '<div class="face front">' +
@@ -517,6 +623,18 @@ body{
     // 버튼 이벤트
     ngBtn.addEventListener('click', function(e){ e.stopPropagation(); markNg(); });
     okBtn.addEventListener('click', function(e){ e.stopPropagation(); markOk(); });
+
+    // 오답노트 나가기 버튼
+    var exitBtn = document.getElementById('wbExit'); if(exitBtn) exitBtn.addEventListener('click', exitWrongBook);
+  }
+
+  function exitWrongBook(){
+    state.wrongBookMode = false;
+    loadState();
+    if(state.queue.length===0 && state.mastered.length !== getDataset().length) initFresh();
+    updateWrongBookBadge();
+    render();
+    showToast('📚 일반 학습 복귀');
   }
 
   function renderBack(card){
@@ -622,9 +740,14 @@ body{
   function markOk(){
     if(!state.flipped){ flipCard(); showToast('💡 답을 먼저 확인'); return; }
     flash('ok'); vibrate(30);
-    addMastered(state.currentId);
+    var id = state.currentId;
+    addMastered(id);
     state.queue.shift();
+    // 큐에 같은 ID가 또 있으면 모두 제거 (중복 출제 방지)
+    state.queue = state.queue.filter(function(x){ return x !== id; });
     state.roundOk++;
+    // 오답노트 학습 모드에서 정답이면 노트에서 제거
+    if(state.wrongBookMode){ removeFromWrongBook(id); updateWrongBookBadge(); }
     saveState();
     setTimeout(render, 260);
   }
@@ -632,12 +755,18 @@ body{
   function markNg(){
     if(!state.flipped){ flipCard(); showToast('💡 답을 먼저 확인'); return; }
     flash('ng'); vibrate([20,40,20]);
-    state.missCount[state.currentId] = (state.missCount[state.currentId]||0)+1;
-    var id = state.queue.shift();
+    var id = state.currentId;
+    state.missCount[id] = (state.missCount[id]||0)+1;
+    // 영구 오답노트에 등록 (정상 학습 모드일 때만)
+    addToWrongBook(id);
+    // 큐에서 현재 카드 꺼내고, 같은 ID가 또 있으면 모두 제거 (중복 출제 방지)
+    state.queue.shift();
+    state.queue = state.queue.filter(function(x){ return x !== id; });
+    // 한 번만 다시 삽입 (앞쪽에서 3~6장 뒤)
     var insertPos = Math.min(3 + Math.floor(Math.random()*4), state.queue.length);
     state.queue.splice(insertPos, 0, id);
-    state.queue.push(id);
     state.roundNg++;
+    updateWrongBookBadge();
     saveState();
     setTimeout(render, 260);
   }
@@ -664,8 +793,10 @@ body{
     for(var i=0;i<tabs.length;i++) tabs[i].classList.remove('active');
     el.classList.add('active');
     state.tab = el.getAttribute('data-tab');
+    state.wrongBookMode = false; // 탭 이동 시 일반 모드로
     loadState();
     if(state.queue.length===0 && state.mastered.length !== getDataset().length) initFresh();
+    updateWrongBookBadge();
     render();
   });
 
@@ -674,8 +805,10 @@ body{
     for(var i=0;i<modes.length;i++) modes[i].classList.remove('active');
     el.classList.add('active');
     state.mode = el.getAttribute('data-mode');
+    state.wrongBookMode = false;
     loadState();
     if(state.queue.length===0 && state.mastered.length !== getDataset().length) initFresh();
+    updateWrongBookBadge();
     render();
   });
 
@@ -684,8 +817,10 @@ body{
     for(var i=0;i<cats.length;i++) cats[i].classList.remove('active');
     el.classList.add('active');
     state.cat = el.getAttribute('data-cat');
+    state.wrongBookMode = false;
     loadState();
     if(state.queue.length===0 && state.mastered.length !== getDataset().length) initFresh();
+    updateWrongBookBadge();
     render();
   });
 
@@ -698,11 +833,59 @@ body{
   });
 
   document.getElementById('btnReset').addEventListener('click', function(){
-    if(confirm('이 모드의 진행을 초기화할까요?')){
+    var label = state.wrongBookMode ? '오답노트' : '이 모드';
+    if(confirm(label+'의 진행 상태를 초기화할까요?\n(완주/오답 카운트만 리셋, 오답노트 데이터는 유지)')){
       storageRemove(storageKey());
       initFresh();
       render();
+      showToast('🔄 진행 초기화');
     }
+  });
+
+  document.getElementById('btnResetAll').addEventListener('click', function(){
+    if(!confirm('⚠️ 전체 초기화\n\n모든 진행 상태 + 오답노트까지 전부 삭제합니다.\n계속할까요?')) return;
+    if(!confirm('정말로 전체 초기화 할까요?\n(되돌릴 수 없습니다)')) return;
+    // STORAGE_PREFIX로 시작하는 모든 키 제거
+    try{
+      var keys = [];
+      if(hasLocalStorage){
+        for(var i=0;i<localStorage.length;i++){
+          var k = localStorage.key(i);
+          if(k && k.indexOf(STORAGE_PREFIX)===0) keys.push(k);
+        }
+        for(var j=0;j<keys.length;j++){ localStorage.removeItem(keys[j]); }
+      }
+      // 메모리 폴백 스토어도 제거
+      for(var mk in memStore){
+        if(memStore.hasOwnProperty(mk) && mk.indexOf(STORAGE_PREFIX)===0) delete memStore[mk];
+      }
+    }catch(e){}
+    state.wrongBookMode = false;
+    initFresh();
+    updateWrongBookBadge();
+    render();
+    showToast('🧹 전체 초기화 완료');
+  });
+
+  document.getElementById('btnWrongBook').addEventListener('click', function(){
+    if(state.wrongBookMode){
+      // 오답노트 학습 종료 → 일반 모드 복귀
+      state.wrongBookMode = false;
+      loadState();
+      if(state.queue.length===0 && state.mastered.length !== getDataset().length) initFresh();
+      updateWrongBookBadge();
+      render();
+      showToast('📚 일반 학습 복귀');
+      return;
+    }
+    var ids = getWrongBookIds();
+    if(ids.length === 0){ showToast('✨ 이 모드에 등록된 오답이 없어!'); return; }
+    state.wrongBookMode = true;
+    loadState();
+    if(state.queue.length === 0){ initFresh(); }
+    updateWrongBookBadge();
+    render();
+    showToast('📌 오답노트 학습 시작 ('+ids.length+'개)');
   });
 
   // iOS Safari 주소창 숨김
@@ -712,6 +895,7 @@ body{
 
   // 초기 진입
   loadState();
+  updateWrongBookBadge();
   render();
 })();
 </script>
