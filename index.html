@@ -93,27 +93,50 @@ body{
 .stats .ok{color:#86efac;}
 .stats .ng{color:#fca5a5;}
 
-/* === 단어 카드 === */
+/* === 단어 카드 (3D Flip) === */
+.flip-wrap{
+  perspective:1400px;
+  margin-bottom:14px;
+  min-height:280px;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.flip-inner{
+  position:relative;
+  width:100%;
+  min-height:280px;
+  transition:transform .55s cubic-bezier(.4,0,.2,1);
+  transform-style:preserve-3d;
+}
+.flip-wrap.is-flipped .flip-inner{ transform:rotateY(180deg); }
 .flashcard{
   background:var(--card);color:var(--ink);
-  border-radius:20px;padding:24px 22px;margin-bottom:14px;
-  box-shadow:0 18px 36px rgba(0,0,0,0.32);min-height:280px;
+  border-radius:20px;padding:24px 22px;
+  box-shadow:0 18px 36px rgba(0,0,0,0.32);
+  min-height:280px;
   display:flex;flex-direction:column;
+  position:absolute;top:0;left:0;right:0;
+  -webkit-backface-visibility:hidden;
+  backface-visibility:hidden;
+}
+.flashcard.back{
+  transform:rotateY(180deg);
+  background:linear-gradient(150deg,#ffffff 0%,#f4f5ff 100%);
+}
+.fc-hint{
+  position:absolute;bottom:14px;left:0;right:0;text-align:center;
+  font-size:11px;color:#9ca3af;font-weight:600;pointer-events:none;
 }
 .fc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
 .fc-cat{font-size:11px;font-weight:800;padding:4px 11px;border-radius:99px;background:var(--soft);color:var(--accent2);}
 .fc-pos{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;background:#fef3c7;color:#92400e;}
 .fc-jp{font-size:36px;font-weight:800;line-height:1.2;margin-bottom:6px;color:#111;}
-.fc-kana{font-size:15px;color:var(--muted);margin-bottom:14px;display:none;}
-.fc-kana.show{display:block;}
-.fc-mean{font-size:20px;font-weight:700;color:var(--accent2);margin-bottom:14px;display:none;}
-.fc-mean.show{display:block;}
-.fc-ex{background:#f5f6ff;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:none;}
-.fc-ex.show{display:block;}
+.fc-kana{font-size:15px;color:var(--muted);margin-bottom:14px;}
+.fc-mean{font-size:22px;font-weight:800;color:var(--accent2);margin-bottom:14px;}
+.fc-ex{background:#f5f6ff;border-radius:12px;padding:12px 14px;margin-bottom:8px;}
 .fc-ex .jp{font-size:15px;color:#222;margin-bottom:4px;}
 .fc-ex .ko{font-size:12px;color:var(--muted);}
-.fc-syn{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;display:none;}
-.fc-syn.show{display:flex;}
+.fc-syn{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
 .fc-syn .badge{font-size:10px;padding:3px 8px;border-radius:6px;font-weight:700;}
 .fc-syn .syn{background:#dcfce7;color:#166534;}
 .fc-syn .ant{background:#fee2e2;color:#991b1b;}
@@ -143,11 +166,19 @@ body.show-furi ruby.furi rt{visibility:visible;}
 .btn:active{transform:scale(0.96);}
 .btn-row{display:flex;gap:8px;margin-bottom:10px;}
 
-/* === 문법 카드 === */
+/* === 문법 카드 (3D Flip) === */
 .gcard{
   background:var(--card);color:var(--ink);
-  border-radius:18px;padding:20px;margin-bottom:14px;
+  border-radius:18px;padding:20px;
   box-shadow:0 14px 30px rgba(0,0,0,0.28);
+  min-height:230px;
+  position:absolute;top:0;left:0;right:0;
+  -webkit-backface-visibility:hidden;
+  backface-visibility:hidden;
+}
+.gcard.back{
+  transform:rotateY(180deg);
+  background:linear-gradient(150deg,#ffffff 0%,#f4f5ff 100%);
 }
 .gcard .jp{font-size:28px;font-weight:800;color:#111;margin-bottom:6px;}
 .gcard .mean{font-size:15px;color:var(--accent2);font-weight:700;margin-bottom:10px;}
@@ -155,6 +186,7 @@ body.show-furi ruby.furi rt{visibility:visible;}
 .gcard .ex{background:#fffbeb;border-left:3px solid var(--warn);border-radius:8px;padding:10px 12px;}
 .gcard .ex .ej{font-size:15px;color:#1f2937;margin-bottom:4px;}
 .gcard .ex .ek{font-size:12px;color:var(--muted);}
+.gcard .hint{font-size:11px;color:#9ca3af;font-weight:600;text-align:center;margin-top:14px;}
 
 /* === 핵심10 === */
 .c10-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
@@ -883,25 +915,37 @@ function renderVocab(){
       <span><b>${vocabState.idx+1}</b>/${total}</span>
       <span class="ok">암기 ${learned}</span>
     </div>
-    <div class="flashcard">
-      <div class="fc-top">
-        <span class="fc-cat">${(cats.find(c=>c.key===cur.cat)||{}).icon||'•'} ${(cats.find(c=>c.key===cur.cat)||{}).label||cur.cat}</span>
-        <span class="fc-pos">${cur.pos}</span>
+    <div class="flip-wrap ${vocabState.showAnswer?'is-flipped':''}" id="flip-card-v">
+      <div class="flip-inner">
+        <!-- FRONT -->
+        <div class="flashcard front">
+          <div class="fc-top">
+            <span class="fc-cat">${(cats.find(c=>c.key===cur.cat)||{}).icon||'•'} ${(cats.find(c=>c.key===cur.cat)||{}).label||cur.cat}</span>
+            <span class="fc-pos">${cur.pos}</span>
+          </div>
+          <div class="fc-jp">${makeRuby(cur.jp, cur.kana)}</div>
+          <div class="fc-hint">👆 카드를 탭하면 뒤로 뒤집혀요</div>
+        </div>
+        <!-- BACK -->
+        <div class="flashcard back">
+          <div class="fc-top">
+            <span class="fc-cat">${(cats.find(c=>c.key===cur.cat)||{}).icon||'•'} ${(cats.find(c=>c.key===cur.cat)||{}).label||cur.cat}</span>
+            <span class="fc-pos">${cur.pos}</span>
+          </div>
+          <div class="fc-kana">${escapeHtml(cur.kana)}</div>
+          <div class="fc-mean">${escapeHtml(cur.mean)}</div>
+          <div class="fc-ex">
+            <div class="jp">${makeRuby(cur.ex, cur.kana)}</div>
+            <div class="ko">${escapeHtml(cur.exMean||'')}</div>
+          </div>
+          ${synAnt ? `<div class="fc-syn">${synAnt}</div>` : ''}
+          <div class="fc-hint">👆 다시 탭하면 앞면으로</div>
+        </div>
       </div>
-      <div class="fc-jp">${makeRuby(cur.jp, cur.kana)}</div>
-      <div class="fc-kana ${vocabState.showAnswer?'show':''}">${escapeHtml(cur.kana)}</div>
-      <div class="fc-mean ${vocabState.showAnswer?'show':''}">${escapeHtml(cur.mean)}</div>
-      <div class="fc-ex ${vocabState.showAnswer?'show':''}">
-        <div class="jp">${makeRuby(cur.ex, cur.kana)}</div>
-        <div class="ko">${escapeHtml(cur.exMean||'')}</div>
-      </div>
-      <div class="fc-syn ${vocabState.showAnswer && synAnt?'show':''}">${synAnt}</div>
     </div>
     <div class="fc-ctrl">
-      ${vocabState.showAnswer
-        ? `<button class="btn btn-ng" data-act="hard">😅 어려움</button>
-           <button class="btn btn-ok" data-act="learned">✓ 외움</button>`
-        : `<button class="btn btn-primary" data-act="reveal">👁 정답 확인</button>`}
+      <button class="btn btn-ng" data-act="hard">😅 어려움</button>
+      <button class="btn btn-ok" data-act="learned">✓ 외움</button>
     </div>
     <div class="btn-row">
       <button class="btn btn-soft" data-act="prev">← 이전</button>
@@ -915,15 +959,24 @@ function renderVocab(){
     renderVocab();
   });
   document.querySelectorAll('#view-vocab [data-act]').forEach(b=>{
-    b.addEventListener('click', ()=>{
+    b.addEventListener('click', ev=>{
+      ev.stopPropagation();
       const a = b.getAttribute('data-act');
-      if(a==='reveal'){ vocabState.showAnswer = true; renderVocab(); }
-      else if(a==='learned'){ state.learned[cur.id]=1; saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab(); }
+      if(a==='learned'){ state.learned[cur.id]=1; saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab(); }
       else if(a==='hard'){ delete state.learned[cur.id]; saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab(); }
       else if(a==='next'){ vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab(); }
       else if(a==='prev'){ vocabState.showAnswer=false; vocabState.idx=(vocabState.idx-1+vocabState.queue.length)%vocabState.queue.length; renderVocab(); }
     });
   });
+  // 카드 탭 → 앞↔뒤 플립
+  const flipEl = document.getElementById('flip-card-v');
+  if(flipEl){
+    flipEl.addEventListener('click', ()=>{
+      vocabState.showAnswer = !vocabState.showAnswer;
+      // 애니메이션 자연스럽게 보이도록 즉시 DOM만 토글
+      flipEl.classList.toggle('is-flipped', vocabState.showAnswer);
+    });
+  }
 }
 function bindVocabCats(){
   document.querySelectorAll('#vcat-chips .chip').forEach(c=>{
@@ -948,19 +1001,24 @@ function renderGrammar(){
     </div>
     <div class="progress"><div class="progress-fill" style="width:${(grammarState.idx+1)/total*100}%"></div></div>
     <div class="stats"><span><b>${grammarState.idx+1}</b>/${total}</span><span class="ok">외움 ${learned}</span></div>
-    <div class="gcard">
-      <div class="jp">${escapeHtml(cur.jp)}</div>
-      ${grammarState.showAnswer ? `
-        <div class="mean">${escapeHtml(cur.mean)}</div>
-        <div class="note">📌 ${escapeHtml(cur.note||'')}</div>
-        <div class="ex"><div class="ej">${makeRuby(cur.ex, '')}</div><div class="ek">${escapeHtml(cur.exMean||'')}</div></div>
-      ` : `<div style="font-size:12px;color:#888;margin-top:14px;">탭해서 정답 확인</div>`}
+    <div class="flip-wrap ${grammarState.showAnswer?'is-flipped':''}" id="flip-card-g">
+      <div class="flip-inner" style="min-height:230px">
+        <div class="gcard front">
+          <div class="jp">${escapeHtml(cur.jp)}</div>
+          <div class="hint">👆 카드를 탭하면 정답을 볼 수 있어요</div>
+        </div>
+        <div class="gcard back">
+          <div class="jp" style="font-size:22px">${escapeHtml(cur.jp)}</div>
+          <div class="mean">${escapeHtml(cur.mean)}</div>
+          <div class="note">📌 ${escapeHtml(cur.note||'')}</div>
+          <div class="ex"><div class="ej">${makeRuby(cur.ex, '')}</div><div class="ek">${escapeHtml(cur.exMean||'')}</div></div>
+          <div class="hint">👆 다시 탭하면 앞면으로</div>
+        </div>
+      </div>
     </div>
     <div class="fc-ctrl">
-      ${grammarState.showAnswer
-        ? `<button class="btn btn-ng" data-act="hard">😅 다시</button>
-           <button class="btn btn-ok" data-act="learned">✓ 외움</button>`
-        : `<button class="btn btn-primary" data-act="reveal">👁 정답 확인</button>`}
+      <button class="btn btn-ng" data-act="hard">😅 다시</button>
+      <button class="btn btn-ok" data-act="learned">✓ 외움</button>
     </div>
     <div class="btn-row">
       <button class="btn btn-soft" data-act="prev">← 이전</button>
@@ -973,15 +1031,22 @@ function renderGrammar(){
     renderGrammar();
   });
   document.querySelectorAll('#view-grammar [data-act]').forEach(b=>{
-    b.addEventListener('click', ()=>{
+    b.addEventListener('click', ev=>{
+      ev.stopPropagation();
       const a = b.getAttribute('data-act');
-      if(a==='reveal'){ grammarState.showAnswer=true; renderGrammar(); }
-      else if(a==='learned'){ state.grammarLearned[cur.id]=1; saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar(); }
+      if(a==='learned'){ state.grammarLearned[cur.id]=1; saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar(); }
       else if(a==='hard'){ delete state.grammarLearned[cur.id]; saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar(); }
       else if(a==='next'){ grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar(); }
       else if(a==='prev'){ grammarState.showAnswer=false; grammarState.idx=(grammarState.idx-1+GRAMMAR.length)%GRAMMAR.length; renderGrammar(); }
     });
   });
+  const flipG = document.getElementById('flip-card-g');
+  if(flipG){
+    flipG.addEventListener('click', ()=>{
+      grammarState.showAnswer = !grammarState.showAnswer;
+      flipG.classList.toggle('is-flipped', grammarState.showAnswer);
+    });
+  }
 }
 
 /* ===== 핵심10 메뉴 ===== */
