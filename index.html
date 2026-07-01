@@ -68,6 +68,16 @@ body{
 .menu-card.hot{background:linear-gradient(135deg,rgba(255,93,143,0.25),rgba(251,191,36,0.2));border-color:rgba(255,93,143,0.4);}
 .menu-card.hot .tag{display:inline-block;font-size:9px;background:var(--accent);padding:2px 7px;border-radius:99px;margin-top:6px;font-weight:800;}
 
+/* 메뉴 카드 진행률 바 */
+.menu-card .mc-prog{margin-top:10px;}
+.menu-card .mc-prog-bar{height:4px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;margin-bottom:4px;}
+.menu-card .mc-prog-fill{height:100%;background:linear-gradient(90deg,var(--accent3),var(--accent));width:0%;transition:width .3s;}
+.menu-card .mc-prog-text{font-size:10px;color:rgba(255,255,255,0.7);display:flex;justify-content:space-between;align-items:center;}
+.menu-card .mc-prog-text .check{color:#86efac;font-weight:800;}
+.menu-card.wrong-card{background:linear-gradient(135deg,rgba(239,68,68,0.22),rgba(251,146,60,0.18));border-color:rgba(239,68,68,0.35);}
+.menu-card.wrong-card .mc-count{display:inline-block;font-size:10px;background:var(--ng);color:#fff;padding:2px 8px;border-radius:99px;margin-top:4px;font-weight:800;}
+.menu-card.reset-card{background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.22);}
+
 .landing-tip{
   background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.25);
   border-radius:12px;padding:12px 14px;font-size:12px;color:rgba(255,255,255,0.82);line-height:1.5;
@@ -133,6 +143,23 @@ body{
 .fc-jp{font-size:36px;font-weight:800;line-height:1.2;margin-bottom:6px;color:#111;}
 .fc-kana{font-size:15px;color:var(--muted);margin-bottom:14px;}
 .fc-mean{font-size:22px;font-weight:800;color:var(--accent2);margin-bottom:14px;}
+
+/* 앞면 정중앙 큰 단어 표시용 */
+.flashcard.front-centered{
+  align-items:center;justify-content:center;text-align:center;
+  padding:36px 22px;position:relative;
+}
+.flashcard.front-centered .fc-top-mini{
+  position:absolute;top:14px;left:14px;right:14px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.flashcard.front-centered .fc-word{
+  font-size:52px;font-weight:800;line-height:1.15;color:#111;
+  word-break:keep-all;letter-spacing:-0.5px;
+}
+.flashcard.front-centered .fc-word.long{font-size:40px;}
+.flashcard.front-centered .fc-word.longer{font-size:32px;}
+.flashcard.front-centered ruby.furi rt{font-size:0.32em;}
 .fc-ex{background:#f5f6ff;border-radius:12px;padding:12px 14px;margin-bottom:8px;}
 .fc-ex .jp{font-size:15px;color:#222;margin-bottom:4px;}
 .fc-ex .ko{font-size:12px;color:var(--muted);}
@@ -181,6 +208,10 @@ body.show-furi ruby.furi rt{visibility:visible;}
   background:linear-gradient(150deg,#ffffff 0%,#f4f5ff 100%);
 }
 .gcard .jp{font-size:28px;font-weight:800;color:#111;margin-bottom:6px;}
+.gcard.front-centered{align-items:center;justify-content:center;text-align:center;padding:34px 20px;}
+.gcard.front-centered .g-word{font-size:40px;font-weight:800;line-height:1.2;color:#111;word-break:keep-all;letter-spacing:-0.5px;}
+.gcard.front-centered .g-word.long{font-size:32px;}
+.gcard.front-centered .g-word.longer{font-size:26px;}
 .gcard .mean{font-size:15px;color:var(--accent2);font-weight:700;margin-bottom:10px;}
 .gcard .note{font-size:11px;color:var(--muted);background:#f5f6ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;}
 .gcard .ex{background:#fffbeb;border-left:3px solid var(--warn);border-radius:8px;padding:10px 12px;}
@@ -290,6 +321,7 @@ body.show-furi ruby.furi rt{visibility:visible;}
   <div id="view-core10" class="hide"></div>
   <div id="view-core10-detail" class="hide"></div>
   <div id="view-stats" class="hide"></div>
+  <div id="view-wrong" class="hide"></div>
 </div>
 
 <script>
@@ -775,9 +807,12 @@ function loadState(){
       learned: {},  // vocab id -> 1
       grammarLearned: {}, // grammar id -> 1
       coreProgress: {}, // core10 id -> { ex: 0, quizDone: false, score: 0 }
+      wrongVocab: {}, // vocab id -> 1  (오답/어려움 수집)
+      wrongGrammar: {}, // grammar id -> 1
+      wrongQuiz: {}, // "coreId:qIdx" -> 1
       furi: false,
     }, j);
-  }catch(e){ return {learned:{}, grammarLearned:{}, coreProgress:{}, furi:false}; }
+  }catch(e){ return {learned:{}, grammarLearned:{}, coreProgress:{}, wrongVocab:{}, wrongGrammar:{}, wrongQuiz:{}, furi:false}; }
 }
 function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 
@@ -787,7 +822,7 @@ let routeParam = null;
 function go(r, param){
   route = r;
   routeParam = param;
-  ['landing','vocab','grammar','core10','core10-detail','stats'].forEach(v=>{
+  ['landing','vocab','grammar','core10','core10-detail','stats','wrong'].forEach(v=>{
     document.getElementById('view-'+v).classList.add('hide');
   });
   document.getElementById('view-'+r).classList.remove('hide');
@@ -802,8 +837,8 @@ function go(r, param){
   });
   const rs = document.getElementById('btn-reset');
   if(rs) rs.addEventListener('click', ()=>{
-    if(confirm('학습 진도를 초기화할까요? (어휘·문법·핵심10 모두)')){
-      state = {learned:{},grammarLearned:{},coreProgress:{},furi:state.furi};
+    if(confirm('학습 진도를 초기화할까요?\n(어휘·문법·핵심10·오답노트 모두 삭제)')){
+      state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},furi:state.furi};
       saveState(); render();
     }
   });
@@ -817,6 +852,23 @@ function renderLanding(){
   const learned = Object.keys(state.learned).length;
   const gLearned = Object.keys(state.grammarLearned).length;
   const coreDone = Object.values(state.coreProgress).filter(p=>p.quizDone).length;
+  const wrongV = Object.keys(state.wrongVocab||{}).length;
+  const wrongG = Object.keys(state.wrongGrammar||{}).length;
+  const wrongQ = Object.keys(state.wrongQuiz||{}).length;
+  const wrongTotal = wrongV + wrongG + wrongQ;
+
+  const pctVocab = META.totalVocab ? Math.round(learned/META.totalVocab*100) : 0;
+  const pctGrammar = META.totalGrammar ? Math.round(gLearned/META.totalGrammar*100) : 0;
+  const pctCore = Math.round(coreDone/10*100);
+
+  function progRow(pct, cur, total, checkText){
+    const done = pct >= 100;
+    return `<div class="mc-prog">
+      <div class="mc-prog-bar"><div class="mc-prog-fill" style="width:${pct}%"></div></div>
+      <div class="mc-prog-text"><span>${cur} / ${total}</span>${done?`<span class="check">✓ ${checkText||'완료'}</span>`:`<span>${pct}%</span>`}</div>
+    </div>`;
+  }
+
   document.getElementById('view-landing').innerHTML = `
     <div class="landing-hero">
       <h1>시험장 가기 전 N3 마스터 🎌</h1>
@@ -824,7 +876,7 @@ function renderLanding(){
       <div class="meta-row">
         <div class="meta-item"><b>${learned}</b><small>/${META.totalVocab} 어휘</small></div>
         <div class="meta-item"><b>${gLearned}</b><small>/${META.totalGrammar} 문법</small></div>
-        <div class="meta-item"><b>${coreDone}</b><small>/10 핵심 완료</small></div>
+        <div class="meta-item"><b>${coreDone}</b><small>/10 핵심</small></div>
       </div>
     </div>
 
@@ -834,16 +886,25 @@ function renderLanding(){
         <div class="ttl">핵심 10문법 집중 훈련</div>
         <div class="sub">수동/사역/사역수동/가능/의지/존경/겸양/수수표현/자타동사/お~になる<br>각 활용규칙 + 예문 5개 + 4지선다 5문제</div>
         <span class="tag">반드시 출제</span>
+        ${progRow(pctCore, coreDone, 10, '전유형 통과')}
       </div>
       <div class="menu-card" data-go="vocab">
         <div class="ic">📖</div>
         <div class="ttl">어휘 단어장</div>
-        <div class="sub">${META.totalVocab}개 · 카테고리별<br>한자에 후리가나 토글</div>
+        <div class="sub">${META.totalVocab}개 · 카테고리별</div>
+        ${progRow(pctVocab, learned, META.totalVocab)}
       </div>
       <div class="menu-card" data-go="grammar">
         <div class="ic">📝</div>
         <div class="ttl">문법 단어장</div>
-        <div class="sub">${META.totalGrammar}개<br>예문·뉘앙스 노트</div>
+        <div class="sub">${META.totalGrammar}개 · 예문·뉘앙스</div>
+        ${progRow(pctGrammar, gLearned, META.totalGrammar)}
+      </div>
+      <div class="menu-card wrong-card full" data-go="wrong">
+        <div class="ic">📕</div>
+        <div class="ttl">오답노트 · 다시 풀기</div>
+        <div class="sub">어려움/다시 표시한 어휘·문법 + 핵심10 퀴즈 오답만 모아 복습</div>
+        ${wrongTotal>0 ? `<span class="mc-count">${wrongTotal}개 있음 · 어휘 ${wrongV} · 문법 ${wrongG} · 퀴즈 ${wrongQ}</span>`:`<span class="mc-count" style="background:rgba(255,255,255,0.15)">오답 없음 · 훌륭해요</span>`}
       </div>
       <div class="menu-card" data-go="stats">
         <div class="ic">📊</div>
@@ -855,11 +916,16 @@ function renderLanding(){
         <div class="ttl">후리가나 ${state.furi?'ON':'OFF'}</div>
         <div class="sub">한자 위 요미가나 표시</div>
       </div>
+      <div class="menu-card reset-card full" data-go="landing-reset">
+        <div class="ic">↻</div>
+        <div class="ttl">데이터 초기화</div>
+        <div class="sub">전체 초기화 / 오답노트만 초기화 / 학습 진도만 초기화 — 선택</div>
+      </div>
     </div>
 
     <div class="landing-tip">
       💡 <b>학습 순서 추천</b><br>
-      ① 핵심 10문법 집중 → ② 어휘 카테고리별 (자주 출제 daily/work 먼저) → ③ 문법 단어장 → ④ 통계 확인 후 약점 보완
+      ① 핵심 10문법 집중 → ② 어휘 카테고리별 (자주 출제 daily/work 먼저) → ③ 문법 단어장 → ④ 오답노트로 약점 보완 → ⑤ 통계 확인
     </div>
   `;
   document.querySelectorAll('#view-landing [data-go]').forEach(el=>{
@@ -872,9 +938,32 @@ function renderLanding(){
         renderLanding();
         return;
       }
+      if(g === 'landing-reset'){
+        openResetMenu();
+        return;
+      }
       go(g);
     });
   });
+}
+
+function openResetMenu(){
+  const opt = prompt('초기화 종류를 선택하세요\n1 = 전체 초기화 (학습 진도 + 오답노트 모두)\n2 = 오답노트만 초기화\n3 = 학습 진도만 초기화 (오답노트 유지)\n\n번호 입력 (취소: 빈칸)');
+  if(!opt) return;
+  if(opt === '1'){
+    if(!confirm('전체 학습 진도와 오답노트를 모두 삭제합니다. 계속할까요?')) return;
+    state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},furi:state.furi};
+  } else if(opt === '2'){
+    if(!confirm('오답노트만 삭제합니다. 계속할까요?')) return;
+    state.wrongVocab = {}; state.wrongGrammar = {}; state.wrongQuiz = {};
+  } else if(opt === '3'){
+    if(!confirm('학습 진도만 삭제합니다 (오답노트 유지). 계속할까요?')) return;
+    state.learned = {}; state.grammarLearned = {}; state.coreProgress = {};
+  } else {
+    alert('잘못된 입력입니다.');
+    return;
+  }
+  saveState(); renderLanding();
 }
 
 /* ===== 어휘 단어장 ===== */
@@ -917,13 +1006,13 @@ function renderVocab(){
     </div>
     <div class="flip-wrap ${vocabState.showAnswer?'is-flipped':''}" id="flip-card-v">
       <div class="flip-inner">
-        <!-- FRONT -->
-        <div class="flashcard front">
-          <div class="fc-top">
+        <!-- FRONT (정중앙 큰 단어) -->
+        <div class="flashcard front front-centered">
+          <div class="fc-top-mini">
             <span class="fc-cat">${(cats.find(c=>c.key===cur.cat)||{}).icon||'•'} ${(cats.find(c=>c.key===cur.cat)||{}).label||cur.cat}</span>
             <span class="fc-pos">${cur.pos}</span>
           </div>
-          <div class="fc-jp">${makeRuby(cur.jp, cur.kana)}</div>
+          <div class="fc-word ${cur.jp.length>=6?'longer':(cur.jp.length>=4?'long':'')}">${makeRuby(cur.jp, cur.kana)}</div>
           <div class="fc-hint">👆 카드를 탭하면 뒤로 뒤집혀요</div>
         </div>
         <!-- BACK -->
@@ -962,8 +1051,19 @@ function renderVocab(){
     b.addEventListener('click', ev=>{
       ev.stopPropagation();
       const a = b.getAttribute('data-act');
-      if(a==='learned'){ state.learned[cur.id]=1; saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab(); }
-      else if(a==='hard'){ delete state.learned[cur.id]; saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab(); }
+      if(a==='learned'){
+        state.learned[cur.id]=1;
+        // 외우면 오답노트에서 제거
+        if(state.wrongVocab && state.wrongVocab[cur.id]) delete state.wrongVocab[cur.id];
+        saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab();
+      }
+      else if(a==='hard'){
+        delete state.learned[cur.id];
+        // 오답노트에 추가
+        state.wrongVocab = state.wrongVocab || {};
+        state.wrongVocab[cur.id] = 1;
+        saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab();
+      }
       else if(a==='next'){ vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab(); }
       else if(a==='prev'){ vocabState.showAnswer=false; vocabState.idx=(vocabState.idx-1+vocabState.queue.length)%vocabState.queue.length; renderVocab(); }
     });
@@ -1003,9 +1103,9 @@ function renderGrammar(){
     <div class="stats"><span><b>${grammarState.idx+1}</b>/${total}</span><span class="ok">외움 ${learned}</span></div>
     <div class="flip-wrap ${grammarState.showAnswer?'is-flipped':''}" id="flip-card-g">
       <div class="flip-inner" style="min-height:230px">
-        <div class="gcard front">
-          <div class="jp">${escapeHtml(cur.jp)}</div>
-          <div class="hint">👆 카드를 탭하면 정답을 볼 수 있어요</div>
+        <div class="gcard front front-centered">
+          <div class="g-word ${cur.jp.length>=10?'longer':(cur.jp.length>=6?'long':'')}">${escapeHtml(cur.jp)}</div>
+          <div class="hint" style="position:absolute;bottom:14px;left:0;right:0;">👆 카드를 탭하면 정답을 볼 수 있어요</div>
         </div>
         <div class="gcard back">
           <div class="jp" style="font-size:22px">${escapeHtml(cur.jp)}</div>
@@ -1034,8 +1134,17 @@ function renderGrammar(){
     b.addEventListener('click', ev=>{
       ev.stopPropagation();
       const a = b.getAttribute('data-act');
-      if(a==='learned'){ state.grammarLearned[cur.id]=1; saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar(); }
-      else if(a==='hard'){ delete state.grammarLearned[cur.id]; saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar(); }
+      if(a==='learned'){
+        state.grammarLearned[cur.id]=1;
+        if(state.wrongGrammar && state.wrongGrammar[cur.id]) delete state.wrongGrammar[cur.id];
+        saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar();
+      }
+      else if(a==='hard'){
+        delete state.grammarLearned[cur.id];
+        state.wrongGrammar = state.wrongGrammar || {};
+        state.wrongGrammar[cur.id] = 1;
+        saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar();
+      }
       else if(a==='next'){ grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar(); }
       else if(a==='prev'){ grammarState.showAnswer=false; grammarState.idx=(grammarState.idx-1+GRAMMAR.length)%GRAMMAR.length; renderGrammar(); }
     });
@@ -1163,7 +1272,20 @@ function renderQuiz(item, prog){
       const i = parseInt(btn.getAttribute('data-i'),10);
       c10State.lastChoice = i;
       c10State.answered = true;
-      if(i === q.answer) c10State.score++;
+      if(i === q.answer){
+        c10State.score++;
+        // 맞춰으면 오답노트에서 제거
+        const wk = item.id+':'+c10State.quizIdx;
+        if(state.wrongQuiz && state.wrongQuiz[wk]){
+          delete state.wrongQuiz[wk];
+          saveState();
+        }
+      } else {
+        // 틀리면 오답노트에 기록
+        state.wrongQuiz = state.wrongQuiz || {};
+        state.wrongQuiz[item.id+':'+c10State.quizIdx] = 1;
+        saveState();
+      }
       renderQuiz(item, prog);
     });
   });
@@ -1218,6 +1340,268 @@ function renderStats(){
   `;
 }
 
+/* ===== 오답노트 ===== */
+let wrongState = { tab:'vocab', vIdx:0, gIdx:0, qIdx:0, showAnswer:false, quizAnswered:false, quizLastChoice:-1 };
+function renderWrong(){
+  const wrongV = Object.keys(state.wrongVocab||{});
+  const wrongG = Object.keys(state.wrongGrammar||{});
+  const wrongQ = Object.keys(state.wrongQuiz||{});
+  const total = wrongV.length + wrongG.length + wrongQ.length;
+
+  if(total === 0){
+    document.getElementById('view-wrong').innerHTML = `
+      <div style="text-align:center;padding:40px 20px;">
+        <div style="font-size:56px;margin-bottom:14px;">🎉</div>
+        <div style="font-size:20px;font-weight:800;margin-bottom:8px;">오답노트가 비어있어요</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;">
+          어휘·문법에서 <b style="color:#fca5a5">😅 어려움/다시</b>를 누르거나<br>
+          핵심10 퀴즈에서 <b style="color:#fca5a5">틀린 문제</b>가 자동으로 여기에 쌓입니다.
+        </div>
+        <button class="btn btn-primary" style="max-width:200px;margin-top:20px;" onclick="go('landing')">홈으로</button>
+      </div>`;
+    return;
+  }
+
+  const tabs = [
+    {key:'vocab', label:'📖 어휘', count:wrongV.length},
+    {key:'grammar', label:'📝 문법', count:wrongG.length},
+    {key:'quiz', label:'🎯 퀴즈', count:wrongQ.length},
+  ];
+
+  const chips = tabs.map(t=>
+    `<div class="chip ${wrongState.tab===t.key?'active':''} ${t.count===0?'disabled':''}" data-tab="${t.key}">${t.label}<span class="cnt">${t.count}</span></div>`
+  ).join('');
+
+  let body = '';
+  if(wrongState.tab === 'vocab' && wrongV.length > 0){
+    body = renderWrongVocab(wrongV);
+  } else if(wrongState.tab === 'grammar' && wrongG.length > 0){
+    body = renderWrongGrammar(wrongG);
+  } else if(wrongState.tab === 'quiz' && wrongQ.length > 0){
+    body = renderWrongQuiz(wrongQ);
+  } else {
+    // 현재 탭이 비어있으면 데이터 있는 첫 탭으로
+    const first = tabs.find(t=>t.count>0);
+    if(first){ wrongState.tab = first.key; return renderWrong(); }
+  }
+
+  document.getElementById('view-wrong').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:16px;font-weight:800;">📕 오답노트 <span style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:600;">${total}건</span></div>
+      <button class="backbtn" id="btn-wrong-clear" style="padding:6px 10px;font-size:11px;">🗑 이 탭 비우기</button>
+    </div>
+    <div class="chips">${chips}</div>
+    ${body}
+  `;
+
+  document.querySelectorAll('#view-wrong .chip[data-tab]').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      wrongState.tab = c.getAttribute('data-tab');
+      wrongState.vIdx=0; wrongState.gIdx=0; wrongState.qIdx=0;
+      wrongState.showAnswer=false; wrongState.quizAnswered=false; wrongState.quizLastChoice=-1;
+      renderWrong();
+    });
+  });
+  const clr = document.getElementById('btn-wrong-clear');
+  if(clr) clr.addEventListener('click', ()=>{
+    const t = wrongState.tab;
+    if(!confirm(`현재 탭(${t}) 오답을 모두 비울까요?`)) return;
+    if(t==='vocab') state.wrongVocab = {};
+    else if(t==='grammar') state.wrongGrammar = {};
+    else if(t==='quiz') state.wrongQuiz = {};
+    saveState(); renderWrong();
+  });
+
+  bindWrongActions();
+}
+
+function renderWrongVocab(ids){
+  if(wrongState.vIdx >= ids.length) wrongState.vIdx = 0;
+  const id = ids[wrongState.vIdx];
+  const cur = VOCAB.find(v => String(v.id) === String(id));
+  if(!cur){ return `<div class="landing-tip">데이터를 찾을 수 없어요. 초기화 후 다시 시도해주세요.</div>`; }
+  const cats = META.categories;
+  const synAnt = `${(cur.syn||[]).map(s=>`<span class="badge syn">≈ ${s}</span>`).join('')}${(cur.ant||[]).map(s=>`<span class="badge ant">⇄ ${s}</span>`).join('')}`;
+  return `
+    <div class="progress"><div class="progress-fill" style="width:${(wrongState.vIdx+1)/ids.length*100}%"></div></div>
+    <div class="stats"><span><b>${wrongState.vIdx+1}</b>/${ids.length}</span><span class="ng">오답 ${ids.length}개</span></div>
+    <div class="flip-wrap ${wrongState.showAnswer?'is-flipped':''}" id="flip-card-w">
+      <div class="flip-inner">
+        <div class="flashcard front front-centered">
+          <div class="fc-top-mini">
+            <span class="fc-cat">${(cats.find(c=>c.key===cur.cat)||{}).icon||'•'} ${(cats.find(c=>c.key===cur.cat)||{}).label||cur.cat}</span>
+            <span class="fc-pos">${cur.pos}</span>
+          </div>
+          <div class="fc-word ${cur.jp.length>=6?'longer':(cur.jp.length>=4?'long':'')}">${makeRuby(cur.jp, cur.kana)}</div>
+          <div class="fc-hint">👆 카드를 탭하면 뒤로 뒤집혀요</div>
+        </div>
+        <div class="flashcard back">
+          <div class="fc-top">
+            <span class="fc-cat">${(cats.find(c=>c.key===cur.cat)||{}).icon||'•'} ${(cats.find(c=>c.key===cur.cat)||{}).label||cur.cat}</span>
+            <span class="fc-pos">${cur.pos}</span>
+          </div>
+          <div class="fc-kana">${escapeHtml(cur.kana)}</div>
+          <div class="fc-mean">${escapeHtml(cur.mean)}</div>
+          <div class="fc-ex">
+            <div class="jp">${makeRuby(cur.ex, cur.kana)}</div>
+            <div class="ko">${escapeHtml(cur.exMean||'')}</div>
+          </div>
+          ${synAnt ? `<div class="fc-syn">${synAnt}</div>` : ''}
+          <div class="fc-hint">👆 다시 탭하면 앞면으로</div>
+        </div>
+      </div>
+    </div>
+    <div class="fc-ctrl">
+      <button class="btn btn-ng" data-wact="still-hard">😅 아직 어려움</button>
+      <button class="btn btn-ok" data-wact="mastered">✓ 이제 외웠음</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-soft" data-wact="prev">← 이전</button>
+      <button class="btn btn-soft" data-wact="next">다음 →</button>
+    </div>
+  `;
+}
+
+function renderWrongGrammar(ids){
+  if(wrongState.gIdx >= ids.length) wrongState.gIdx = 0;
+  const id = ids[wrongState.gIdx];
+  const cur = GRAMMAR.find(g => String(g.id) === String(id));
+  if(!cur){ return `<div class="landing-tip">데이터를 찾을 수 없어요.</div>`; }
+  return `
+    <div class="progress"><div class="progress-fill" style="width:${(wrongState.gIdx+1)/ids.length*100}%"></div></div>
+    <div class="stats"><span><b>${wrongState.gIdx+1}</b>/${ids.length}</span><span class="ng">오답 ${ids.length}개</span></div>
+    <div class="flip-wrap ${wrongState.showAnswer?'is-flipped':''}" id="flip-card-w">
+      <div class="flip-inner" style="min-height:230px">
+        <div class="gcard front front-centered">
+          <div class="g-word ${cur.jp.length>=10?'longer':(cur.jp.length>=6?'long':'')}">${escapeHtml(cur.jp)}</div>
+          <div class="hint" style="position:absolute;bottom:14px;left:0;right:0;">👆 탭하면 정답</div>
+        </div>
+        <div class="gcard back">
+          <div class="jp" style="font-size:22px">${escapeHtml(cur.jp)}</div>
+          <div class="mean">${escapeHtml(cur.mean)}</div>
+          <div class="note">📌 ${escapeHtml(cur.note||'')}</div>
+          <div class="ex"><div class="ej">${makeRuby(cur.ex, '')}</div><div class="ek">${escapeHtml(cur.exMean||'')}</div></div>
+          <div class="hint">👆 다시 탭하면 앞면으로</div>
+        </div>
+      </div>
+    </div>
+    <div class="fc-ctrl">
+      <button class="btn btn-ng" data-wact="still-hard">😅 아직 어려움</button>
+      <button class="btn btn-ok" data-wact="mastered">✓ 이제 외웠음</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-soft" data-wact="prev">← 이전</button>
+      <button class="btn btn-soft" data-wact="next">다음 →</button>
+    </div>
+  `;
+}
+
+function renderWrongQuiz(keys){
+  if(wrongState.qIdx >= keys.length) wrongState.qIdx = 0;
+  const key = keys[wrongState.qIdx];
+  const [coreId, qIdxStr] = key.split(':');
+  const item = CORE10.find(c => c.id === coreId);
+  const qi = parseInt(qIdxStr, 10);
+  const q = item && item.quiz ? item.quiz[qi] : null;
+  if(!q){ return `<div class="landing-tip">문제를 찾을 수 없어요.</div>`; }
+
+  return `
+    <div class="progress"><div class="progress-fill" style="width:${(wrongState.qIdx+1)/keys.length*100}%"></div></div>
+    <div class="stats"><span><b>${wrongState.qIdx+1}</b>/${keys.length}</span><span class="ng">오답 ${keys.length}개</span></div>
+    <div class="quiz-wrap">
+      <div class="quiz-prog">${item.icon} ${escapeHtml(item.label)}</div>
+      <div class="quiz-q">${escapeHtml(q.q)}</div>
+      <div class="choices">
+        ${q.choices.map((ch,i)=>{
+          let cls = 'choice';
+          if(wrongState.quizAnswered){
+            if(i === q.answer) cls += ' ok';
+            else if(i === wrongState.quizLastChoice) cls += ' ng';
+            cls += ' disabled';
+          }
+          return `<button class="${cls}" data-i="${i}"><span class="num">${i+1}</span>${escapeHtml(ch)}</button>`;
+        }).join('')}
+      </div>
+      <div class="exp-box ${wrongState.quizAnswered?'show':''}"><b>해설:</b> ${escapeHtml(q.exp||'')}</div>
+      ${wrongState.quizAnswered ? `<button class="btn btn-primary" data-wact="quiz-next" style="margin-top:10px;">다음 문제 →</button>` : ''}
+    </div>
+  `;
+}
+
+function bindWrongActions(){
+  // 카드 플립
+  const flip = document.getElementById('flip-card-w');
+  if(flip){
+    flip.addEventListener('click', ()=>{
+      wrongState.showAnswer = !wrongState.showAnswer;
+      flip.classList.toggle('is-flipped', wrongState.showAnswer);
+    });
+  }
+
+  // 어휘/문법 액션
+  document.querySelectorAll('#view-wrong [data-wact]').forEach(b=>{
+    b.addEventListener('click', ev=>{
+      ev.stopPropagation();
+      const a = b.getAttribute('data-wact');
+      const tab = wrongState.tab;
+      const idxKey = tab==='vocab' ? 'vIdx' : (tab==='grammar' ? 'gIdx' : 'qIdx');
+      const bag = tab==='vocab' ? state.wrongVocab : (tab==='grammar' ? state.wrongGrammar : state.wrongQuiz);
+      const ids = Object.keys(bag||{});
+
+      if(a==='mastered'){
+        const key = ids[wrongState[idxKey]];
+        // 어휘/문법이면 learned에도 등록
+        if(tab==='vocab'){ state.learned[key]=1; }
+        else if(tab==='grammar'){ state.grammarLearned[key]=1; }
+        delete bag[key];
+        saveState();
+        wrongState.showAnswer = false;
+        // idx는 유지 (다음 아이템 자동 노출)
+        renderWrong();
+      } else if(a==='still-hard'){
+        // 그냥 다음으로
+        wrongState.showAnswer = false;
+        wrongState[idxKey] = (wrongState[idxKey]+1) % Math.max(ids.length,1);
+        renderWrong();
+      } else if(a==='next'){
+        wrongState.showAnswer = false;
+        wrongState[idxKey] = (wrongState[idxKey]+1) % Math.max(ids.length,1);
+        renderWrong();
+      } else if(a==='prev'){
+        wrongState.showAnswer = false;
+        wrongState[idxKey] = (wrongState[idxKey]-1+ids.length) % Math.max(ids.length,1);
+        renderWrong();
+      } else if(a==='quiz-next'){
+        wrongState.quizAnswered = false;
+        wrongState.quizLastChoice = -1;
+        wrongState.qIdx = (wrongState.qIdx+1) % Math.max(Object.keys(state.wrongQuiz||{}).length,1);
+        renderWrong();
+      }
+    });
+  });
+
+  // 퀴즈 선택지
+  document.querySelectorAll('#view-wrong .choice').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(wrongState.quizAnswered) return;
+      const i = parseInt(btn.getAttribute('data-i'),10);
+      const keys = Object.keys(state.wrongQuiz||{});
+      const key = keys[wrongState.qIdx];
+      const [coreId, qIdxStr] = key.split(':');
+      const item = CORE10.find(c => c.id === coreId);
+      const q = item.quiz[parseInt(qIdxStr,10)];
+      wrongState.quizLastChoice = i;
+      wrongState.quizAnswered = true;
+      if(i === q.answer){
+        // 맞추면 오답노트에서 제거
+        delete state.wrongQuiz[key];
+        saveState();
+      }
+      renderWrong();
+    });
+  });
+}
+
 /* ===== 라우터 ===== */
 function render(){
   if(route==='landing') renderLanding();
@@ -1226,6 +1610,7 @@ function render(){
   else if(route==='core10') renderCore10();
   else if(route==='core10-detail') renderCore10Detail();
   else if(route==='stats') renderStats();
+  else if(route==='wrong') renderWrong();
 }
 
 document.body.classList.toggle('show-furi', !!state.furi);
