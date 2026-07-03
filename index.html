@@ -1011,6 +1011,7 @@ function openResetMenu(){
 
 /* ===== 어휘 단어장 ===== */
 let vocabState = { cat:'all', idx:0, mode:'flash' /* flash | list */, showAnswer:false, queue:[] };
+function vocabPosKey(){ return 'vocab_' + (vocabState.cat || 'all'); }
 function buildVocabQueue(){
   const list = vocabState.cat === 'all' ? VOCAB.slice() : VOCAB.filter(v=>v.cat===vocabState.cat);
   vocabState.queue = list;
