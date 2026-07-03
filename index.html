@@ -196,9 +196,10 @@ body.show-furi ruby.furi rt{visibility:visible;}
 /* === 문법 카드 (3D Flip) === */
 .gcard{
   background:var(--card);color:var(--ink);
-  border-radius:18px;padding:20px;
-  box-shadow:0 14px 30px rgba(0,0,0,0.28);
-  min-height:230px;
+  border-radius:20px;padding:24px 22px;
+  box-shadow:0 18px 36px rgba(0,0,0,0.32);
+  min-height:280px;
+  display:flex;flex-direction:column;
   position:absolute;top:0;left:0;right:0;
   -webkit-backface-visibility:hidden;
   backface-visibility:hidden;
@@ -208,10 +209,17 @@ body.show-furi ruby.furi rt{visibility:visible;}
   background:linear-gradient(150deg,#ffffff 0%,#f4f5ff 100%);
 }
 .gcard .jp{font-size:28px;font-weight:800;color:#111;margin-bottom:6px;}
-.gcard.front-centered{align-items:center;justify-content:center;text-align:center;padding:34px 20px;}
-.gcard.front-centered .g-word{font-size:40px;font-weight:800;line-height:1.2;color:#111;word-break:keep-all;letter-spacing:-0.5px;}
-.gcard.front-centered .g-word.long{font-size:32px;}
-.gcard.front-centered .g-word.longer{font-size:26px;}
+.gcard.front-centered{
+  align-items:center;justify-content:center;text-align:center;
+  padding:36px 22px;position:relative;
+}
+.gcard.front-centered .g-word{
+  font-size:52px;font-weight:800;line-height:1.15;color:#111;
+  word-break:keep-all;letter-spacing:-0.5px;
+}
+.gcard.front-centered .g-word.long{font-size:40px;}
+.gcard.front-centered .g-word.longer{font-size:32px;}
+.gcard.front-centered .g-word.longest{font-size:26px;}
 .gcard .mean{font-size:15px;color:var(--accent2);font-weight:700;margin-bottom:10px;}
 .gcard .note{font-size:11px;color:var(--muted);background:#f5f6ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;}
 .gcard .ex{background:#fffbeb;border-left:3px solid var(--warn);border-radius:8px;padding:10px 12px;}
@@ -806,15 +814,26 @@ function loadState(){
     return Object.assign({
       learned: {},  // vocab id -> 1
       grammarLearned: {}, // grammar id -> 1
+      lastPos: {}, // {vocab_all:idx, vocab_daily:idx, grammar:idx, wrongVocab:idx, wrongGrammar:idx, wrongQuiz:idx}
       coreProgress: {}, // core10 id -> { ex: 0, quizDone: false, score: 0 }
       wrongVocab: {}, // vocab id -> 1  (오답/어려움 수집)
       wrongGrammar: {}, // grammar id -> 1
       wrongQuiz: {}, // "coreId:qIdx" -> 1
       furi: false,
     }, j);
-  }catch(e){ return {learned:{}, grammarLearned:{}, coreProgress:{}, wrongVocab:{}, wrongGrammar:{}, wrongQuiz:{}, furi:false}; }
+  }catch(e){ return {learned:{}, grammarLearned:{}, coreProgress:{}, wrongVocab:{}, wrongGrammar:{}, wrongQuiz:{}, lastPos:{}, furi:false}; }
 }
 function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+/* ===== 마지막 학습 위치 저장/복원 ===== */
+function savePos(key, idx){
+  state.lastPos = state.lastPos || {};
+  state.lastPos[key] = idx;
+  saveState();
+}
+function loadPos(key, fallback=0){
+  return (state.lastPos && typeof state.lastPos[key] === 'number') ? state.lastPos[key] : fallback;
+}
 
 let route = 'landing';
 let routeParam = null;
@@ -838,10 +857,34 @@ function go(r, param){
   const rs = document.getElementById('btn-reset');
   if(rs) rs.addEventListener('click', ()=>{
     if(confirm('학습 진도를 초기화할까요?\n(어휘·문법·핵심10·오답노트 모두 삭제)')){
-      state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},furi:state.furi};
+      state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},lastPos:{},furi:state.furi};
       saveState(); render();
     }
   });
+  // 진입 시 마지막 학습 위치 복원
+  if(r==='grammar' && grammarState._resumed !== true){
+    grammarState.idx = loadPos(GRAMMAR_POS_KEY, 0);
+    if(grammarState.idx >= GRAMMAR.length) grammarState.idx = 0;
+    grammarState.showAnswer = false;
+    grammarState._resumed = true;
+  }
+  if(r==='vocab' && vocabState._resumed !== true){
+    vocabState.idx = loadPos(vocabPosKey(), 0);
+    vocabState.showAnswer = false;
+    vocabState._resumed = true;
+  }
+  if(r==='wrong' && wrongState._resumed !== true){
+    wrongState.vIdx = loadPos('wrongVocab', 0);
+    wrongState.gIdx = loadPos('wrongGrammar', 0);
+    wrongState.qIdx = loadPos('wrongQuiz', 0);
+    wrongState._resumed = true;
+  }
+  // 홈으로 나가면 재진입 시 다시 복원되도록
+  if(r==='landing'){
+    if(typeof grammarState!=='undefined') grammarState._resumed = false;
+    if(typeof vocabState!=='undefined') vocabState._resumed = false;
+    if(typeof wrongState!=='undefined') wrongState._resumed = false;
+  }
   // body furi class
   document.body.classList.toggle('show-furi', !!state.furi);
   render();
@@ -952,7 +995,7 @@ function openResetMenu(){
   if(!opt) return;
   if(opt === '1'){
     if(!confirm('전체 학습 진도와 오답노트를 모두 삭제합니다. 계속할까요?')) return;
-    state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},furi:state.furi};
+    state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},lastPos:{},furi:state.furi};
   } else if(opt === '2'){
     if(!confirm('오답노트만 삭제합니다. 계속할까요?')) return;
     state.wrongVocab = {}; state.wrongGrammar = {}; state.wrongQuiz = {};
@@ -1055,17 +1098,17 @@ function renderVocab(){
         state.learned[cur.id]=1;
         // 외우면 오답노트에서 제거
         if(state.wrongVocab && state.wrongVocab[cur.id]) delete state.wrongVocab[cur.id];
-        saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab();
+        saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; savePos(vocabPosKey(), vocabState.idx); renderVocab();
       }
       else if(a==='hard'){
         delete state.learned[cur.id];
         // 오답노트에 추가
         state.wrongVocab = state.wrongVocab || {};
         state.wrongVocab[cur.id] = 1;
-        saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab();
+        saveState(); vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; savePos(vocabPosKey(), vocabState.idx); renderVocab();
       }
-      else if(a==='next'){ vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; renderVocab(); }
-      else if(a==='prev'){ vocabState.showAnswer=false; vocabState.idx=(vocabState.idx-1+vocabState.queue.length)%vocabState.queue.length; renderVocab(); }
+      else if(a==='next'){ vocabState.showAnswer=false; vocabState.idx=(vocabState.idx+1)%vocabState.queue.length; savePos(vocabPosKey(), vocabState.idx); renderVocab(); }
+      else if(a==='prev'){ vocabState.showAnswer=false; vocabState.idx=(vocabState.idx-1+vocabState.queue.length)%vocabState.queue.length; savePos(vocabPosKey(), vocabState.idx); renderVocab(); }
     });
   });
   // 카드 탭 → 앞↔뒤 플립
@@ -1082,7 +1125,8 @@ function bindVocabCats(){
   document.querySelectorAll('#vcat-chips .chip').forEach(c=>{
     c.addEventListener('click', ()=>{
       vocabState.cat = c.getAttribute('data-cat');
-      vocabState.idx = 0; vocabState.showAnswer = false;
+      vocabState.idx = loadPos(vocabPosKey(), 0);
+      vocabState.showAnswer = false;
       renderVocab();
     });
   });
@@ -1090,6 +1134,7 @@ function bindVocabCats(){
 
 /* ===== 문법 단어장 ===== */
 let grammarState = { idx:0, showAnswer:false };
+const GRAMMAR_POS_KEY = 'grammar';
 function renderGrammar(){
   const cur = GRAMMAR[grammarState.idx];
   const learned = Object.keys(state.grammarLearned).length;
@@ -1104,7 +1149,7 @@ function renderGrammar(){
     <div class="flip-wrap ${grammarState.showAnswer?'is-flipped':''}" id="flip-card-g">
       <div class="flip-inner" style="min-height:230px">
         <div class="gcard front front-centered">
-          <div class="g-word ${cur.jp.length>=10?'longer':(cur.jp.length>=6?'long':'')}">${escapeHtml(cur.jp)}</div>
+          <div class="g-word ${cur.jp.length>=12?'longest':(cur.jp.length>=8?'longer':(cur.jp.length>=5?'long':''))}">${escapeHtml(cur.jp)}</div>
           <div class="hint" style="position:absolute;bottom:14px;left:0;right:0;">👆 카드를 탭하면 정답을 볼 수 있어요</div>
         </div>
         <div class="gcard back">
@@ -1137,16 +1182,16 @@ function renderGrammar(){
       if(a==='learned'){
         state.grammarLearned[cur.id]=1;
         if(state.wrongGrammar && state.wrongGrammar[cur.id]) delete state.wrongGrammar[cur.id];
-        saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar();
+        saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; savePos(GRAMMAR_POS_KEY, grammarState.idx); renderGrammar();
       }
       else if(a==='hard'){
         delete state.grammarLearned[cur.id];
         state.wrongGrammar = state.wrongGrammar || {};
         state.wrongGrammar[cur.id] = 1;
-        saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar();
+        saveState(); grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; savePos(GRAMMAR_POS_KEY, grammarState.idx); renderGrammar();
       }
-      else if(a==='next'){ grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; renderGrammar(); }
-      else if(a==='prev'){ grammarState.showAnswer=false; grammarState.idx=(grammarState.idx-1+GRAMMAR.length)%GRAMMAR.length; renderGrammar(); }
+      else if(a==='next'){ grammarState.showAnswer=false; grammarState.idx=(grammarState.idx+1)%GRAMMAR.length; savePos(GRAMMAR_POS_KEY, grammarState.idx); renderGrammar(); }
+      else if(a==='prev'){ grammarState.showAnswer=false; grammarState.idx=(grammarState.idx-1+GRAMMAR.length)%GRAMMAR.length; savePos(GRAMMAR_POS_KEY, grammarState.idx); renderGrammar(); }
     });
   });
   const flipG = document.getElementById('flip-card-g');
@@ -1473,7 +1518,7 @@ function renderWrongGrammar(ids){
     <div class="flip-wrap ${wrongState.showAnswer?'is-flipped':''}" id="flip-card-w">
       <div class="flip-inner" style="min-height:230px">
         <div class="gcard front front-centered">
-          <div class="g-word ${cur.jp.length>=10?'longer':(cur.jp.length>=6?'long':'')}">${escapeHtml(cur.jp)}</div>
+          <div class="g-word ${cur.jp.length>=12?'longest':(cur.jp.length>=8?'longer':(cur.jp.length>=5?'long':''))}">${escapeHtml(cur.jp)}</div>
           <div class="hint" style="position:absolute;bottom:14px;left:0;right:0;">👆 탭하면 정답</div>
         </div>
         <div class="gcard back">
