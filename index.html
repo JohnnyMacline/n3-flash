@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0f1024">
-<title>N3 마스터 — 시험장 가기 전 모든 것</title>
+<title>JLPT 마스터 — N1~N5 시험장 가기 전 모든 것</title>
 <style>
 :root{
   --bg1:#0f1024; --bg2:#1a1a3e; --bg3:#2d1b4e;
@@ -313,19 +313,75 @@ body.show-furi ruby.furi rt{visibility:visible;}
 }
 .result-card .big{font-size:48px;font-weight:800;margin-bottom:8px;}
 .result-card .lbl{font-size:13px;opacity:0.85;}
+
+/* ===== 레벨 선택 화면 ===== */
+.level-hero{
+  background:linear-gradient(135deg,rgba(122,92,255,0.22),rgba(34,211,238,0.18));
+  border:1px solid rgba(255,255,255,0.14);
+  border-radius:20px; padding:24px 22px; margin-bottom:20px; text-align:center;
+}
+.level-hero .flag{font-size:38px; line-height:1; margin-bottom:8px;}
+.level-hero h1{font-size:22px; font-weight:800; letter-spacing:-0.3px; margin-bottom:6px;}
+.level-hero p{font-size:13px; color:rgba(255,255,255,0.78); line-height:1.5;}
+
+.level-list{display:flex; flex-direction:column; gap:12px;}
+.level-card{
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.14);
+  border-radius:16px; padding:16px 18px; cursor:pointer;
+  display:flex; align-items:center; gap:14px;
+  transition:.18s;
+  position:relative;
+}
+.level-card:active{transform:scale(0.98);}
+.level-card.ready{border-color:rgba(255,255,255,0.28);}
+.level-card.not-ready{opacity:0.6; cursor:not-allowed;}
+.level-card .badge{
+  flex-shrink:0; width:56px; height:56px; border-radius:14px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; font-weight:900; color:#fff;
+  letter-spacing:-0.5px;
+}
+.level-card .info{flex:1; min-width:0;}
+.level-card .info-top{display:flex; align-items:center; gap:8px; margin-bottom:4px;}
+.level-card .info-top .lv-title{font-size:16px; font-weight:800;}
+.level-card .info-top .lv-tag{font-size:10px; padding:2px 8px; border-radius:99px; background:rgba(255,255,255,0.12); font-weight:700;}
+.level-card .info-top .lv-tag.hot{background:linear-gradient(135deg,#ff5d8f,#fbbf24); color:#fff;}
+.level-card .info-top .lv-tag.soon{background:rgba(148,163,184,0.25); color:rgba(255,255,255,0.75);}
+.level-card .info-desc{font-size:12px; color:rgba(255,255,255,0.7); line-height:1.4;}
+.level-card .info-meta{display:flex; gap:10px; margin-top:6px; font-size:10.5px; color:rgba(255,255,255,0.55);}
+.level-card .arrow{font-size:20px; color:rgba(255,255,255,0.5); flex-shrink:0;}
+.level-card.ready .arrow{color:rgba(255,255,255,0.85);}
+
+.level-tip{
+  background:rgba(34,211,238,0.08);
+  border:1px solid rgba(34,211,238,0.25);
+  border-radius:12px; padding:12px 14px; font-size:12px;
+  color:rgba(255,255,255,0.8); line-height:1.5; margin-top:14px;
+}
+.level-tip b{color:var(--accent3);}
+
+/* 랜딩 상단 레벨 배지 */
+.landing-level-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 10px; border-radius:99px;
+  background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22);
+  font-size:11px; font-weight:800; margin-bottom:8px;
+}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="appbar">
-    <div class="brand" id="brand">N3 <span>마스터</span></div>
+    <div class="brand" id="brand">JLPT <span>마스터</span></div>
     <div class="appbar-btns" id="bar-btns">
       <button class="iconbtn" id="btn-reset" title="진도 초기화">↻</button>
     </div>
   </div>
 
   <!-- 라우팅: 각 view -->
-  <div id="view-landing"></div>
+  <div id="view-level"></div>
+  <div id="view-landing" class="hide"></div>
   <div id="view-vocab" class="hide"></div>
   <div id="view-grammar" class="hide"></div>
   <div id="view-core10" class="hide"></div>
@@ -459,6 +515,23 @@ const GRAMMAR = [
   {"id":119,"jp":"〜たて","mean":"갓 ~한","ex":"焼きたてのパン。","exMean":"갓 구운 빵.","note":"신선 직후"},
   {"id":120,"jp":"〜際に","mean":"~할 때 (정중)","ex":"使用の際にご注意ください。","exMean":"사용 시 주의해 주세요.","note":"공식 표현"}
 ];
+/* ===== 레벨 메타 (별도로 유지. 데이터는 N3만 준비) ===== */
+const LEVELS = [
+  { key:'n5', label:'N5', tag:'입문',  desc:'기초 한자·종조사·동사 변형', color:'#22c55e', ready:false, cnt:{v:800, g:60} },
+  { key:'n4', label:'N4', tag:'초급',  desc:'일상 회화 + 리니톡·수동 기초', color:'#0ea5e9', ready:false, cnt:{v:1500, g:100} },
+  { key:'n3', label:'N3', tag:'중급',  desc:'시험장 가기 전 마스터 · 핵심10문법', color:'#ff5d8f', ready:true,  cnt:{v:831, g:122} },
+  { key:'n2', label:'N2', tag:'중상급', desc:'녕스·리포트 독해·관용표현 확장', color:'#7a5cff', ready:false, cnt:{v:3000, g:200} },
+  { key:'n1', label:'N1', tag:'고급',  desc:'논설·문학·비즈니스 고난이도', color:'#fbbf24', ready:false, cnt:{v:5000, g:280} },
+];
+
+function getLevelMeta(key){ return LEVELS.find(l=>l.key===key) || LEVELS[2]; }
+
+/* 현재 선택된 레벨의 데이터를 반환 (미래 확장용 래퍼) */
+function currentVocab(){ return VOCAB; }
+function currentGrammar(){ return GRAMMAR; }
+function currentCore10(){ return CORE10; }
+function currentMeta(){ return META; }
+
 const META = {
   "categories": [
     { "key": "daily",   "label": "일상생활", "icon": "🏠", "count": 120, "tip": "동작 동사가 많아 자·타동사 페어로 묶어 외워라. 例: 開ける↔開く / つける↔つく",       "strategy": "유의어·반의어 페어 암기. 실생활 동사는 '対象+を/が'를 함께 입에 익히는 게 핵심." },
@@ -920,23 +993,42 @@ let routeParam = null;
 function go(r, param){
   route = r;
   routeParam = param;
-  ['landing','vocab','grammar','core10','core10-detail','stats','wrong'].forEach(v=>{
+  ['level','landing','vocab','grammar','core10','core10-detail','stats','wrong'].forEach(v=>{
     document.getElementById('view-'+v).classList.add('hide');
   });
   document.getElementById('view-'+r).classList.remove('hide');
-  // 헤더 갱신
-  document.getElementById('bar-btns').innerHTML = (r==='landing')
-    ? `<button class="iconbtn" id="btn-reset" title="진도 초기화">↻</button>`
-    : `<button class="backbtn" id="btn-back">← 홈</button>`;
+  // 브랜드 텍스트 갱신 (선택된 레벨 반영)
+  const brandEl = document.getElementById('brand');
+  if(brandEl){
+    const lv = state.selectedLevel ? getLevelMeta(state.selectedLevel) : null;
+    if(r==='level' || !lv){
+      brandEl.innerHTML = 'JLPT <span>마스터</span>';
+    }else{
+      brandEl.innerHTML = `${lv.label.toUpperCase()} <span>마스터</span>`;
+    }
+  }
+  // 헤더 오른쪽 버튼 갱신
+  let barHtml = '';
+  if(r==='level'){
+    barHtml = '';
+  }else if(r==='landing'){
+    barHtml = `<button class="iconbtn" id="btn-level" title="레벨 변경">🎚️</button>
+               <button class="iconbtn" id="btn-reset" title="진도 초기화">↻</button>`;
+  }else{
+    barHtml = `<button class="backbtn" id="btn-back">← 홈</button>`;
+  }
+  document.getElementById('bar-btns').innerHTML = barHtml;
   const back = document.getElementById('btn-back');
   if(back) back.addEventListener('click', ()=>{
     if(r==='core10-detail') go('core10');
     else go('landing');
   });
+  const lvBtn = document.getElementById('btn-level');
+  if(lvBtn) lvBtn.addEventListener('click', ()=>go('level'));
   const rs = document.getElementById('btn-reset');
   if(rs) rs.addEventListener('click', ()=>{
     if(confirm('학습 진도를 초기화할까요?\n(어휘·문법·핵심10·오답노트 모두 삭제)')){
-      state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},lastPos:{},furi:state.furi};
+      state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},lastPos:{},furi:state.furi,selectedLevel:state.selectedLevel};
       saveState(); render();
     }
   });
@@ -969,6 +1061,64 @@ function go(r, param){
   render();
 }
 
+/* ===== 레벨 선택 화면 ===== */
+function renderLevelPicker(){
+  const el = document.getElementById('view-level');
+  const cards = LEVELS.map(lv=>{
+    const clickable = lv.ready ? '' : 'not-ready';
+    const tag = lv.ready
+      ? (lv.key==='n3' ? `<span class="lv-tag hot">🔥 지금 이용 가능</span>` : `<span class="lv-tag">이용 가능</span>`)
+      : `<span class="lv-tag soon">준비 중</span>`;
+    const arrow = lv.ready ? '→' : '🔒';
+    return `
+      <div class="level-card ${lv.ready?'ready':'not-ready'}" data-level="${lv.key}">
+        <div class="badge" style="background:linear-gradient(135deg,${lv.color},${lv.color}dd);">${lv.label.toUpperCase()}</div>
+        <div class="info">
+          <div class="info-top">
+            <div class="lv-title">JLPT ${lv.label.toUpperCase()}</div>
+            ${tag}
+          </div>
+          <div class="info-desc">${lv.desc}</div>
+          <div class="info-meta">
+            <span>📖 어휘 ${lv.cnt.v.toLocaleString()}+</span>
+            <span>✍️ 문법 ${lv.cnt.g.toLocaleString()}+</span>
+          </div>
+        </div>
+        <div class="arrow">${arrow}</div>
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="level-hero">
+      <div class="flag">🎌</div>
+      <h1>JLPT 레벨을 선택하세요</h1>
+      <p>N1부터 N5까지 시험장 전에 필요한 모든 것을 한 곳에서 준비하세요.</p>
+    </div>
+    <div class="level-list">${cards}</div>
+    <div class="level-tip">
+      <b>💡 안내</b> · 현재 <b>N3</b>이 정식 오픈되어 있으며, 나머지 레벨은 순차 확장 예정입니다.
+      레벨별로 진도·오답노트가 별도 저장되어 자유롭게 전환할 수 있습니다.
+    </div>
+  `;
+
+  el.querySelectorAll('.level-card.ready').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const key = card.getAttribute('data-level');
+      state.selectedLevel = key;
+      saveState();
+      go('landing');
+    });
+  });
+  el.querySelectorAll('.level-card.not-ready').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const key = card.getAttribute('data-level');
+      const lv = getLevelMeta(key);
+      alert(`JLPT ${lv.label.toUpperCase()}는 현재 준비 중입니다.\n\n지금은 N3으로 시작하셔도 모든 기능을 이용하실 수 있어요!`);
+    });
+  });
+}
+
 /* ===== 랜딩 ===== */
 function renderLanding(){
   const learned = Object.keys(state.learned).length;
@@ -991,9 +1141,12 @@ function renderLanding(){
     </div>`;
   }
 
+  const lvMeta = state.selectedLevel ? getLevelMeta(state.selectedLevel) : getLevelMeta('n3');
+  const lvLabel = lvMeta.label.toUpperCase();
   document.getElementById('view-landing').innerHTML = `
     <div class="landing-hero">
-      <h1>시험장 가기 전 N3 마스터 🎌</h1>
+      <div class="landing-level-chip" style="background:${lvMeta.color}33; border-color:${lvMeta.color}55;">🎌 JLPT ${lvLabel} 학습 중</div>
+      <h1>시험장 가기 전 ${lvLabel} 마스터</h1>
       <p>어휘 ${META.totalVocab}개 · 문법 ${META.totalGrammar}개 · 핵심 10문법 집중 훈련까지 한 곳에서.</p>
       <div class="meta-row">
         <div class="meta-item"><b>${learned}</b><small>/${META.totalVocab} 어휘</small></div>
@@ -1074,7 +1227,7 @@ function openResetMenu(){
   if(!opt) return;
   if(opt === '1'){
     if(!confirm('전체 학습 진도와 오답노트를 모두 삭제합니다. 계속할까요?')) return;
-    state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},lastPos:{},furi:state.furi};
+    state = {learned:{},grammarLearned:{},coreProgress:{},wrongVocab:{},wrongGrammar:{},wrongQuiz:{},lastPos:{},furi:state.furi,selectedLevel:state.selectedLevel};
   } else if(opt === '2'){
     if(!confirm('오답노트만 삭제합니다. 계속할까요?')) return;
     state.wrongVocab = {}; state.wrongGrammar = {}; state.wrongQuiz = {};
@@ -1751,7 +1904,8 @@ function bindWrongActions(){
 
 /* ===== 라우터 ===== */
 function render(){
-  if(route==='landing') renderLanding();
+  if(route==='level') renderLevelPicker();
+  else if(route==='landing') renderLanding();
   else if(route==='vocab') renderVocab();
   else if(route==='grammar') renderGrammar();
   else if(route==='core10') renderCore10();
@@ -1761,7 +1915,8 @@ function render(){
 }
 
 document.body.classList.toggle('show-furi', !!state.furi);
-go('landing');
+// 최초 진입 시 레벨 선택 여부에 따라 라우팅
+go(state.selectedLevel ? 'landing' : 'level');
 </script>
 </body>
 </html>
