@@ -1093,7 +1093,7 @@ function renderLevelPicker(){
   const cards = LEVELS.map(lv=>{
     const clickable = lv.ready ? '' : 'not-ready';
     const tag = lv.ready
-      ? (lv.key==='n3' ? `<span class="lv-tag hot">🔥 지금 이용 가능</span>` : `<span class="lv-tag">이용 가능</span>`)
+      ? `<span class="lv-tag hot">🔥 지금 이용 가능</span>`
       : `<span class="lv-tag soon">준비 중</span>`;
     const arrow = lv.ready ? '→' : '🔒';
     return `
@@ -1123,7 +1123,7 @@ function renderLevelPicker(){
     </div>
     <div class="level-list">${cards}</div>
     <div class="level-tip">
-      <b>💡 안내</b> · 현재 <b>N3</b>이 정식 오픈되어 있으며, 나머지 레벨은 순차 확장 예정입니다.
+      <b>💡 안내</b> · <b>N1~N5 전체 레벨</b>이 오픈되어 있습니다.
       레벨별로 진도·오답노트가 별도 저장되어 자유롭게 전환할 수 있습니다.
     </div>
   `;
