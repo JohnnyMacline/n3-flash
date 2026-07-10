@@ -1091,10 +1091,6 @@ function go(r, param){
 function renderLevelPicker(){
   const el = document.getElementById('view-level');
   const cards = LEVELS.map(lv=>{
-    const clickable = lv.ready ? '' : 'not-ready';
-    const tag = lv.ready
-      ? `<span class="lv-tag hot">🔥 지금 이용 가능</span>`
-      : `<span class="lv-tag soon">준비 중</span>`;
     const arrow = lv.ready ? '→' : '🔒';
     return `
       <div class="level-card ${lv.ready?'ready':'not-ready'}" data-level="${lv.key}">
@@ -1102,7 +1098,6 @@ function renderLevelPicker(){
         <div class="info">
           <div class="info-top">
             <div class="lv-title">JLPT ${lv.label.toUpperCase()}</div>
-            ${tag}
           </div>
           <div class="info-desc">${lv.desc}</div>
           <div class="info-meta">
