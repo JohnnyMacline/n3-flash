@@ -7,7 +7,7 @@
 일본어 능력 시험(JLPT) N1~N5 전 레벨을 한 곳에서 준비하는 웹앱.
 어휘 **8,000개**, 문법 **485개**, 핵심 10문법 집중 훈련까지.
 
-[🚀 지금 시작하기](https://johnnymacline.github.io/n3-flash/) ・ [💾 GitHub](https://github.com/JohnnyMacline/n3-flash)
+[🚀 지금 시작하기](https://johnnymacline.github.io/jlpt-master/) ・ [💾 GitHub](https://github.com/JohnnyMacline/jlpt-master)
 
 ![OG Preview](og-image.png)
 
@@ -90,12 +90,12 @@
 
 ### 온라인으로 바로 사용
 
-👉 **[https://johnnymacline.github.io/n3-flash/](https://johnnymacline.github.io/n3-flash/)**
+👉 **[https://johnnymacline.github.io/jlpt-master/](https://johnnymacline.github.io/jlpt-master/)**
 
 ### 로컬에서 실행
 
 ```bash
-git clone https://github.com/JohnnyMacline/n3-flash.git
+git clone https://github.com/JohnnyMacline/jlpt-master.git
 cd n3-flash
 # 어떤 정적 서버든 OK
 python3 -m http.server 8000

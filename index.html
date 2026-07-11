@@ -13,10 +13,10 @@
 <meta name="author" content="JohnnyMacline">
 <!-- Open Graph -->
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://johnnymacline.github.io/n3-flash/">
+<meta property="og:url" content="https://johnnymacline.github.io/jlpt-master/">
 <meta property="og:title" content="JLPT 마스터 — N1~N5 시험장 가기 전 모든 것">
 <meta property="og:description" content="하루 15분, 어휘 30개. 오늘도 당신의 합격을 응원합니다. 어휘 8,000개 · 문법 485개 · 핵심 10문법으로 끝장 준비.">
-<meta property="og:image" content="https://johnnymacline.github.io/n3-flash/og-image.png">
+<meta property="og:image" content="https://johnnymacline.github.io/jlpt-master/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="ko_KR">
@@ -25,7 +25,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="JLPT 마스터 — 하루 15분으로 시험장 준비">
 <meta name="twitter:description" content="어휘 8,000개 · 문법 485개 · 핵심 10문법 집중 훈련. N1~N5 전교재 무료 · 로그인 불필요.">
-<meta name="twitter:image" content="https://johnnymacline.github.io/n3-flash/og-image.png">
+<meta name="twitter:image" content="https://johnnymacline.github.io/jlpt-master/og-image.png">
 <!-- Favicons (인라인 SVG) -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23ff5d8f'/><stop offset='0.5' stop-color='%237a5cff'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='url(%23g)'/><text x='50%25' y='58%25' text-anchor='middle' dominant-baseline='middle' font-family='-apple-system,Segoe UI,sans-serif' font-size='22' font-weight='900' fill='white'>日</text></svg>">
 <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23ff5d8f'/><stop offset='0.5' stop-color='%237a5cff'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient></defs><rect width='180' height='180' rx='40' fill='url(%23g)'/><text x='50%25' y='58%25' text-anchor='middle' dominant-baseline='middle' font-family='-apple-system,Segoe UI,sans-serif' font-size='72' font-weight='900' fill='white'>日</text></svg>">
@@ -51,6 +51,54 @@ body{
 }
 .app{padding:calc(var(--safe-top) + 14px) 14px calc(var(--safe-bot) + 24px);max-width:560px;margin:0 auto;}
 .hide{display:none !important;}
+
+/* === 이노션 배너 (상단) === */
+.inno-banner{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:linear-gradient(135deg,rgba(255,93,143,0.14),rgba(34,211,238,0.14));
+  border:1px solid rgba(255,255,255,0.16);
+  border-radius:12px;padding:8px 14px;margin-bottom:12px;
+  font-size:12px;font-weight:700;letter-spacing:0.02em;
+  color:rgba(255,255,255,0.92);
+}
+.inno-banner .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent3));
+  box-shadow:0 0 8px var(--accent);
+  animation:pulse 2s ease-in-out infinite;
+}
+.inno-banner b{
+  background:linear-gradient(135deg,var(--accent),var(--accent3));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  font-weight:900;
+}
+@keyframes pulse{
+  0%,100%{opacity:1;transform:scale(1);}
+  50%{opacity:0.6;transform:scale(1.3);}
+}
+
+/* === 이노션 푸터 === */
+.inno-footer{
+  margin-top:24px;padding:14px 12px;
+  border-top:1px solid rgba(255,255,255,0.1);
+  text-align:center;
+  font-size:11px;color:rgba(255,255,255,0.55);
+  line-height:1.6;
+}
+.inno-footer .made{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:999px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);
+  font-weight:700;color:rgba(255,255,255,0.75);
+  margin-bottom:6px;
+}
+.inno-footer .made b{
+  background:linear-gradient(135deg,var(--accent),var(--accent3));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  font-weight:900;
+}
+.inno-footer .sub{color:rgba(255,255,255,0.42);}
 
 /* 헤더 */
 .appbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
@@ -485,6 +533,10 @@ body.show-furi ruby.furi rt{visibility:visible;}
 </head>
 <body>
 <div class="app">
+  <div class="inno-banner">
+    <span class="dot"></span>
+    <span>Made for <b>INNOCEAN</b> — 이노션 임직원을 위한 학습 앱</span>
+  </div>
   <div class="appbar">
     <div class="brand" id="brand">JLPT <span>마스터</span></div>
     <div class="appbar-btns" id="bar-btns">
@@ -501,6 +553,12 @@ body.show-furi ruby.furi rt{visibility:visible;}
   <div id="view-core10-detail" class="hide"></div>
   <div id="view-stats" class="hide"></div>
   <div id="view-wrong" class="hide"></div>
+
+  <div class="inno-footer">
+    <div class="made">🎌 Made for <b>INNOCEAN</b></div>
+    <div>이노션 임직원을 위한 사내 바이브코딩 프로젝트</div>
+    <div class="sub">by 김도성 · CRM비즈니스팀 · 2026</div>
+  </div>
 </div>
 
 <script>
